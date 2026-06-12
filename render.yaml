@@ -1,0 +1,60 @@
+services:
+  - type: pserv
+    name: ciso-qdrant
+    env: docker
+    image:
+      url: qdrant/qdrant:v1.14.0
+    disk:
+      name: qdrant-data
+      mountPath: /qdrant/storage
+      sizeGB: 1
+
+  - type: web
+    name: ciso-backend
+    env: docker
+    image:
+      url: ghcr.io/intuitem/ciso-assistant-community/backend:latest
+    envVars:
+      - key: ALLOWED_HOSTS
+        value: ciso-backend.onrender.com,localhost,backend
+      - key: CISO_ASSISTANT_URL
+        value: https://ciso-frontend.onrender.com
+      - key: DJANGO_DEBUG
+        value: "False"
+      - key: AUTH_TOKEN_TTL
+        value: "7200"
+      - key: QDRANT_URL
+        value: http://ciso-qdrant:6333
+
+  - type: worker
+    name: ciso-huey
+    env: docker
+    image:
+      url: ghcr.io/intuitem/ciso-assistant-community/backend:latest
+    startCommand: python manage.py run_huey -w 2 --scheduler-interval 60
+    envVars:
+      - key: ALLOWED_HOSTS
+        value: ciso-backend.onrender.com,localhost,backend
+      - key: CISO_ASSISTANT_URL
+        value: https://ciso-frontend.onrender.com
+      - key: DJANGO_DEBUG
+        value: "False"
+      - key: AUTH_TOKEN_TTL
+        value: "7200"
+      - key: QDRANT_URL
+        value: http://ciso-qdrant:6333
+
+  - type: web
+    name: ciso-frontend
+    env: docker
+    image:
+      url: ghcr.io/intuitem/ciso-assistant-community/frontend:latest
+    envVars:
+      - key: PUBLIC_BACKEND_API_URL
+        value: https://ciso-backend.onrender.com/api
+      - key: PUBLIC_BACKEND_API_EXPOSED_URL
+        value: https://ciso-backend.onrender.com/api
+      - key: PROTOCOL_HEADER
+        value: x-forwarded-proto
+      - key: HOST_HEADER
+        value: x-forwarded-host
